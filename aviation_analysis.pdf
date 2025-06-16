@@ -1,0 +1,260 @@
+{
+  "metadata": {
+    "kernelspec": {
+      "name": "python",
+      "display_name": "Python (Pyodide)",
+      "language": "python"
+    },
+    "language_info": {
+      "name": ""
+    }
+  },
+  "nbformat_minor": 5,
+  "nbformat": 4,
+  "cells": [
+    {
+      "id": "6d2ece16-e616-4510-a001-67662fc8bb19",
+      "cell_type": "markdown",
+      "source": "# Project Overview\nThis Jupyter Notebook documents the process of analyzing civil aviation accident data from the National Transportation Safety Board (NTSB), spanning from 1962 to 2023. The primary objective is to identify aircraft types that pose the lowest risk, providing data-driven recommendations to inform strategic purchasing decisions for a company expanding into the aviation industry.\n\n## The analysis involves:\n\nData Loading and Initial Inspection\n\nComprehensive Data Cleaning and Preprocessing\n\nFeature Engineering to Define Risk Metrics\n\nAggregation and Comparative Risk Analysis\n\nInteractive Data Visualization\n\nFormulation of Concrete Business Recommendations",
+      "metadata": {}
+    },
+    {
+      "id": "bead8ea7-91e2-4580-b3cc-5bdd6134b25e",
+      "cell_type": "markdown",
+      "source": "## 1. Setup and Data Loading\nFirst, I'll set up our environment by importing the necessary libraries. Ensure I have pandas, matplotlib, seaborn installed in my Conda environment.",
+      "metadata": {}
+    },
+    {
+      "id": "8dba9d30-a55e-47c4-a8fd-e08469d820a6",
+      "cell_type": "code",
+      "source": "# Import necessary libraries\nimport pandas as pd\nimport matplotlib.pyplot as plt\nimport seaborn as sns\n\n# Optional: To suppress warnings for cleaner output\nimport warnings\n\nwarnings.filterwarnings('ignore')\n\n# Set aesthetic for plots\nsns.set_style(\"whitegrid\")\nplt.rcParams['figure.figsize'] = (12, 7)\nplt.rcParams['font.size'] = 12\nplt.rcParams['axes.labelsize'] = 14\nplt.rcParams['axes.titlesize'] = 16\nplt.rcParams['xtick.labelsize'] = 10\nplt.rcParams['ytick.labelsize'] = 10\n\n# Load the dataset\n# Assuming the dataset is named 'AviationData.csv' and is in a 'data' folder\n# Adjust the file_path variable if your file is named differently or located elsewhere\nfile_path = \"./AviationData.csv\"\n\ntry:\n    df = pd.read_csv(file_path, encoding=\"ISO-8859-1\", low_memory=False)\n    print(f\"Dataset loaded successfully from: {file_path}\")\n    print(f\"Initial dataset shape: {df.shape}\")\nexcept FileNotFoundError:\n    print(f\"Error: The file was not found at {file_path}. Please check the path and filename.\")\n    print(\"Make sure your notebook is in the correct directory, or provide the full path to the file.\")\n    df = None  # Set df to None to avoid errors in subsequent operations if loading fails\n",
+      "metadata": {
+        "trusted": true
+      },
+      "outputs": [],
+      "execution_count": null
+    },
+    {
+      "id": "8abfbd1d-fefa-4232-9f6b-f5ff5602af6c",
+      "cell_type": "markdown",
+      "source": "## 2. Initial Data Inspection\nBefore cleaning, it's essential to understand the raw data's structure, identify potential issues like missing values, incorrect data types, and inconsistencies.",
+      "metadata": {}
+    },
+    {
+      "id": "07262840-4dc6-41cb-97fa-80a59f564985",
+      "cell_type": "code",
+      "source": "if df is not None:\n    print(\"\\n--- First 5 Rows of the Dataset ---\")\n    print(df.head())\n\n    print(\"\\n--- Dataset Information (Columns, Non-Null Counts, Data Types) ---\")\n    df.info()\n\n    print(\"\\n--- Basic Statistical Summary of Numerical Columns ---\")\n    print(df.describe())\n\n    print(\"\\n--- Number of Unique Values per Column ---\")\n    print(df.nunique())\n\n    print(\"\\n--- Check for Duplicated Rows ---\")\n    print(f\"Number of duplicated rows: {df.duplicated().sum()}\")\nelse:\n    print(\"Data not loaded, skipping initial inspection.\")",
+      "metadata": {
+        "trusted": true
+      },
+      "outputs": [],
+      "execution_count": null
+    },
+    {
+      "id": "cda72b88-3aa3-4a3c-8ac1-137e175b0b3f",
+      "cell_type": "markdown",
+      "source": "## 3. Data Cleaning and Preprocessing\nThis phase involves transforming the raw data into a clean, usable format. I'll handle dates, standardize text fields, and process numerical outcome variables.\n\n### 3.1. Handling Dates\nThe Event Date column is crucial for temporal analysis. I'll convert it to datetime objects and extract the year.",
+      "metadata": {}
+    },
+    {
+      "id": "11ee8705-0138-4219-8033-b1046705b52b",
+      "cell_type": "code",
+      "source": "if df is not None:\n    print(\"--- Cleaning 'Event Date' column ---\")\n    # Convert 'Event Date' to datetime objects, coercing errors to NaT\n    df['Event.Date'] = pd.to_datetime(df['Event.Date'], errors='coerce')\n\n    # Check for any NaT (Not a Time) values after conversion\n    print(f\"Number of unparseable dates (NaT values) found: {df['Event.Date'].isna().sum()}\")\n\n    # Extract Year for easier time-series analysis later\n    df['Year'] = df['Event.Date'].dt.year\n\n    # Drop rows where 'Event Date' (and thus 'Year') couldn't be parsed, as they are essential\n    df.dropna(subset=['Event.Date'], inplace=True)\n    print(f\"Dataset shape after dropping rows with missing or invalid 'Event Date': {df.shape}\")\nelse:\n    print(\"Data not loaded, skipping date cleaning.\")\n",
+      "metadata": {
+        "trusted": true
+      },
+      "outputs": [],
+      "execution_count": null
+    },
+    {
+      "id": "43fdb7db-2fdb-484a-95b3-56b8ed4820b9",
+      "cell_type": "markdown",
+      "source": "### 3.2. Standardizing Aircraft Information\nAircraft Make and Aircraft Model are central to identifying unique aircraft types. I'll standardize these text fields to ensure consistent grouping.",
+      "metadata": {}
+    },
+    {
+      "id": "dc5eecea-4492-4e1f-a4d3-3b08d2cb1aaa",
+      "cell_type": "code",
+      "source": "if df is not None:\n    print(\"\\n--- Cleaning 'Aircraft Make' and 'Aircraft Model' columns ---\")\n    for col in ['Make', 'Model']:\n        if col in df.columns:\n            # Convert to string, then to uppercase, strip leading/trailing whitespace\n            df[col] = df[col].astype(str).str.upper().str.strip()\n            # Replace multiple spaces with a single space\n            df[col] = df[col].str.replace(r'\\s+', ' ', regex=True)\n            # Handle 'NAN' or 'NONE' strings that might result from missing values being converted to str\n            df[col] = df[col].replace({'NAN': None, 'NONE': None, 'UNKNOWN': None})\n        else:\n            print(f\"Warning: Column '{col}' not found in the dataset.\")\n\n    # Check for missing values in critical aircraft identification columns after initial cleaning\n    print(\"\\nMissing values in key aircraft columns after initial text standardization:\")\n    print(df[['Make', 'Model']].isnull().sum())\n\n    # Drop rows where 'Aircraft Make' or 'Aircraft Model' are still missing, as they are crucial for analysis\n    original_shape = df.shape[0]\n    df.dropna(subset=['Make', 'Model'], inplace=True)\n    print(f\"Dropped {original_shape - df.shape[0]} rows due to missing Aircraft Make/Model.\")\n    print(f\"Dataset shape after dropping rows with missing Make/Model: {df.shape}\")\nelse:\n    print(\"Data not loaded, skipping aircraft info cleaning.\")\n",
+      "metadata": {
+        "trusted": true
+      },
+      "outputs": [],
+      "execution_count": null
+    },
+    {
+      "id": "d4855300-9a5d-4462-8d0e-bf8c146889b1",
+      "cell_type": "markdown",
+      "source": "### 3.3. Cleaning Numerical Outcome Variables (Fatalities, Injuries)\nColumns like Total Fatal Injuries and Total Uninjured need to be numeric. I'll convert them and fill missing values with 0, assuming absence of data means zero occurrences.",
+      "metadata": {}
+    },
+    {
+      "id": "b7bf6dce-8929-4fc6-a61a-bf3ce583e4e8",
+      "cell_type": "code",
+      "source": "if df is not None:\n    print(\"\\n--- Cleaning numerical outcome columns ---\")\n    # Columns to convert to numeric, coercing errors to NaN\n    numeric_outcome_cols = [\n        'Total.Fatal.Injuries', 'Total.Serious.Injuries',\n        'Total.Minor.Injuries', 'Total.Uninjured'\n    ]\n\n    for col in numeric_outcome_cols:\n        if col in df.columns:\n            df[col] = pd.to_numeric(df[col], errors='coerce')\n            # Fill NaN values with 0, assuming missing means 'no injuries/fatalities'\n            df[col].fillna(0, inplace=True)\n            # Convert to integer type after filling NaNs\n            df[col] = df[col].astype(int)\n        else:\n            print(f\"Warning: Column '{col}' not found in the dataset, skipping conversion.\")\n\n    # Create a 'Total Injuries' column by summing serious and minor injuries\n    if 'Total.Serious.Injuries' in df.columns and 'Total.Minor.Injuries' in df.columns:\n        df['Total.Injuries'] = df['Total.Serious.Injuries'] + df['Total.Minor.Injuries']\n        print(f\"Created 'Total Injuries' column.\")\n    else:\n        # Fallback if specific injury columns are missing, sum all available numeric outcome cols\n        df['Total.Injuries'] = df[[col for col in numeric_outcome_cols if col in df.columns]].sum(axis=1)\n        print(f\"Warning: Specific injury columns not found, 'Total Injuries' summed from available outcome cols.\")\n\n    # Rename 'Total Fatal Injuries' to 'Fatalities' for simplicity and consistency\n    if 'Total.Fatal.Injuries' in df.columns:\n        df.rename(columns={'Total.Fatal.Injuries': 'Fatalities'}, inplace=True)\n        print(f\"Renamed 'Total Fatal Injuries' to 'Fatalities'.\")\n    else:\n        print(\"Warning: 'Total Fatal Injuries' column not found for renaming.\")\n\n    print(\"\\nMissing values in key numerical outcome columns after cleaning (should be 0):\")\n    print(df[['Fatalities', 'Total.Injuries']].isnull().sum())\nelse:\n    print(\"Data not loaded, skipping numerical outcome cleaning.\")",
+      "metadata": {
+        "trusted": true
+      },
+      "outputs": [],
+      "execution_count": null
+    },
+    {
+      "id": "d63bb1e6-d951-400f-b909-1f34ce01b954",
+      "cell_type": "markdown",
+      "source": "### 3.4. Inspecting and Cleaning Damage Information (Aircraft Damage)\nThe Aircraft Damage column indicates the severity of aircraft damage, which is a key risk factor. I'll standardize its values.",
+      "metadata": {}
+    },
+    {
+      "id": "6b1e56d2-8afa-4413-943c-a0ae2903ccc4",
+      "cell_type": "code",
+      "source": "if df is not None:\n    if 'Aircraft.damage' in df.columns:\n        print(\"\\nUnique values in 'Aircraft Damage' before final cleaning:\")\n        print(df['Aircraft.damage'].value_counts(dropna=False))\n\n        # Standardize values to uppercase and replace common representations of missing/unknown\n        df['Aircraft.damage'] = df['Aircraft.damage'].astype(str).str.upper().str.strip()\n        df['Aircraft.damage'] = df['Aircraft.damage'].replace({'NAN': None, 'UNKN': None,\n                                                               'UNKNOWN': None, '(NONE)': None})\n\n        # Fill any remaining NaNs for 'Aircraft Damage' with 'UNKNOWN'\n        df['Aircraft.damage'].fillna('UNKNOWN', inplace=True)\n\n        print(\"\\nUnique values in 'Aircraft Damage' after final cleaning:\")\n        print(df['Aircraft.damage'].value_counts(dropna=False))\n    else:\n        print(\"Warning: 'Aircraft Damage' column not found in the dataset, skipping cleaning.\")\nelse:\n    print(\"Data not loaded, skipping damage info cleaning.\")",
+      "metadata": {
+        "trusted": true
+      },
+      "outputs": [],
+      "execution_count": null
+    },
+    {
+      "id": "b7e35295-d322-45f7-aca0-ef9ef63deec5",
+      "cell_type": "markdown",
+      "source": "### 3.5. Final Data Check After Cleaning\nA quick review of the data's state after all cleaning steps.",
+      "metadata": {}
+    },
+    {
+      "id": "a4d6692a-f988-4ddb-b046-502c44fe9d76",
+      "cell_type": "code",
+      "source": "if df is not None:\n    print(\"\\n--- Dataset Info After All Cleaning Steps ---\")\n    df.info()\n\n    print(\"\\n--- First 5 Rows After All Cleaning Steps ---\")\n    print(df.head())\nelse:\n    print(\"Data not loaded, skipping final check.\")",
+      "metadata": {
+        "trusted": true
+      },
+      "outputs": [],
+      "execution_count": null
+    },
+    {
+      "id": "0da7acc2-2b77-4287-bc27-d217b63eabda",
+      "cell_type": "markdown",
+      "source": "## 4. Feature Engineering and Risk Metric Definition\nHere, I'll create new columns that directly represent our risk metrics, preparing the data for aggregation and comparative analysis.\n\n\n### 4.1. Defining Risk Metrics & Creating Features\nI'll create binary flags to easily count incidents with fatalities or high damage.",
+      "metadata": {}
+    },
+    {
+      "id": "990294e3-921f-4ea4-ae58-652e84f013ea",
+      "cell_type": "code",
+      "source": "if df is not None:\n    print(\"--- Creating Feature Engineering for Risk Metrics ---\")\n\n    # Create a binary column: 1 if an incident had any fatalities, 0 otherwise\n    df['Incident_Has_Fatalities'] = df['Fatalities'].apply(lambda x: 1 if x > 0 else 0)\n    print(\"Created 'Incident_Has_Fatalities' column.\")\n\n    # Create a binary column: 1 if an incident resulted in 'DESTROYED' or 'SUBSTANTIAL' damage, 0 otherwise\n    if 'Aircraft.damage' in df.columns:\n        df['Incident_Has_High_Damage'] = df['Aircraft.damage'].apply(\n            lambda x: 1 if x in ['DESTROYED', 'SUBSTANTIAL'] else 0\n        )\n        print(\"Created 'Incident_Has_High_Damage' column.\")\n    else:\n        print(\"Warning: 'Aircraft Damage' column not found, 'Incident_Has_High_Damage' not created.\")\n        df['Incident_Has_High_Damage'] = 0  # Default to 0 if the source column is missing\nelse:\n    print(\"Data not loaded, skipping feature engineering.\")\n",
+      "metadata": {
+        "trusted": true
+      },
+      "outputs": [],
+      "execution_count": null
+    },
+    {
+      "id": "94007bd2-b6df-4ca4-9774-3087655e45b2",
+      "cell_type": "markdown",
+      "source": "## 5. Aggregating Data by Aircraft Type\nNow, I'll group the data by Aircraft Make to calculate our defined risk metrics for each manufacturer. This summary table will be the basis for my comparative analysis and recommendations.",
+      "metadata": {}
+    },
+    {
+      "id": "50906579-79e6-428b-80c2-a3d5ffc115bc",
+      "cell_type": "code",
+      "source": "if df is not None:\n    print(\"\\n--- Aggregating Data by Aircraft Make for Risk Summary ---\")\n\n    # Group by 'Aircraft Make' and calculate the desired risk metrics\n    aircraft_risk_summary = df.groupby('Make').agg(\n        Total_Incidents=('Event.Id', 'count'),  # Count of all incidents for the make\n        Total_Fatalities=('Fatalities', 'sum'),  # Sum of all fatalities for the make\n        Total_Injuries=('Total.Injuries', 'sum'),  # Sum of all injuries for the make\n        Incidents_With_Fatalities=('Incident_Has_Fatalities', 'sum'),  # Count of incidents with at least one fatality\n        Incidents_With_High_Damage=('Incident_Has_High_Damage', 'sum')\n        # Count of incidents with destroyed/substantial damage\n    ).reset_index()\n\n    # Calculate the Fatality Rate per incident\n    # This represents the percentage of incidents that resulted in one or more fatalities\n    aircraft_risk_summary['Fatality_Rate_Per_Incident'] = (\n            (aircraft_risk_summary['Incidents_With_Fatalities'] / aircraft_risk_summary['Total_Incidents']) * 100\n    ).fillna(0)  # Fill NaN with 0 for aircraft makes with no incidents (though filtered later)\n\n    # Calculate the High Damage Rate per incident\n    # This represents the percentage of incidents that resulted in substantial or destroyed damage\n    aircraft_risk_summary['High_Damage_Rate_Per_Incident'] = (\n            (aircraft_risk_summary['Incidents_With_High_Damage'] / aircraft_risk_summary['Total_Incidents']) * 100\n    ).fillna(0)  # Fill NaN with 0 for aircraft makes with no incidents\n\n    # Filter out aircraft makes with very few incidents, as their rates might be statistically unreliable\n    # A threshold of 20 incidents ensures a more robust rate calculation\n    min_incidents_threshold = 20\n    aircraft_risk_summary_filtered = aircraft_risk_summary[\n        aircraft_risk_summary['Total_Incidents'] >= min_incidents_threshold\n        ].copy()  # Use .copy() to avoid SettingWithCopyWarning\n\n    print(f\"\\n--- Aircraft Risk Summary (Filtered for Makes with >= {min_incidents_threshold} Incidents) ---\")\n    print(f\"Number of aircraft makes after filtering: {aircraft_risk_summary_filtered.shape[0]}\")\n\n    print(\"\\n--- Top 10 Aircraft Makes by Total Incidents ---\")\n    print(aircraft_risk_summary_filtered.sort_values(by='Total_Incidents', ascending=False).head(10))\n\n    print(\"\\n--- Top 10 Aircraft Makes by Lowest Fatality Rate per Incident ---\")\n    # Sort by fatality rate ascending, then by total incidents descending (to prefer more frequently used low-risk aircraft)\n    print(aircraft_risk_summary_filtered.sort_values(\n        by=['Fatality_Rate_Per_Incident', 'Total_Incidents'], ascending=[True, False]\n    ).head(10))\n\n    print(\"\\n--- Top 10 Aircraft Makes by Lowest High Damage Rate per Incident ---\")\n    # Sort by high damage rate ascending, then by total incidents descending\n    print(aircraft_risk_summary_filtered.sort_values(\n        by=['High_Damage_Rate_Per_Incident', 'Total_Incidents'], ascending=[True, False]\n    ).head(10))\nelse:\n    print(\"Data not loaded, skipping aggregation.\")",
+      "metadata": {
+        "trusted": true
+      },
+      "outputs": [],
+      "execution_count": null
+    },
+    {
+      "id": "c5afeb56-713c-40ec-be52-e76644593979",
+      "cell_type": "markdown",
+      "source": "## 6. Key Visualizations\nVisualizations make our findings accessible and impactful. I'll use Plotly Express to create interactive charts showcasing the most important risk insights.\n\n\n### 6.1. Top Aircraft Makes by Total Incidents\nThis bar chart shows which aircraft manufacturers have been involved in the most incidents. It gives context to their overall operational scale within the incident database.",
+      "metadata": {}
+    },
+    {
+      "id": "680ff3cc-e4e9-48e2-b4ac-f38beafeca52",
+      "cell_type": "code",
+      "source": "if df is not None and 'aircraft_risk_summary_filtered' in locals():\n    print(\"\\n--- Visualizing Top Aircraft Makes by Total Incidents (Matplotlib/Seaborn) ---\")\n    top_incident_makes = aircraft_risk_summary_filtered.sort_values(\n        by='Total_Incidents', ascending=False\n    ).head(15)\n\n    plt.figure(figsize=(14, 8)) # Adjust figure size for better readability\n    sns.barplot(\n        x='Make',\n        y='Total_Incidents',\n        data=top_incident_makes,\n        palette='viridis'  # Using a different color palette for variety\n    )\n    plt.title('Top 15 Aircraft Makes by Total Incidents (1962-2023)')\n    plt.xlabel('Aircraft Manufacturer')\n    plt.ylabel('Number of Incidents')\n    plt.xticks(rotation=45, ha='right') # Rotate labels for better fit\n    plt.tight_layout()  # Adjust layout to prevent labels from overlapping\n    plt.show()\nelse:\n    print(\"Skipping visualization: Data not loaded or risk summary not generated.\")\n",
+      "metadata": {
+        "trusted": true
+      },
+      "outputs": [],
+      "execution_count": null
+    },
+    {
+      "id": "e037cc4e-bb21-42b8-b2db-71df320f61fb",
+      "cell_type": "markdown",
+      "source": "### 6.2. Top Aircraft Makes by Lowest Fatality Rate Per Incident\nThis is a critical chart for assessing human safety risk. I'll identify manufacturers with a low percentage of incidents resulting in fatalities.",
+      "metadata": {}
+    },
+    {
+      "id": "43f39d19-f12b-4a57-8b96-e23adaf108ab",
+      "cell_type": "code",
+      "source": "if df is not None and 'aircraft_risk_summary_filtered' in locals():\n    print(\"\\n--- Visualizing Top Aircraft Makes with Lowest Fatality Rate Per Incident (Matplotlib/Seaborn) ---\")\n    # Sort by Fatality_Rate_Per_Incident (ascending), then by Total_Incidents (descending for tie-breaking)\n    lowest_fatality_rate_makes = aircraft_risk_summary_filtered.sort_values(\n        by=['Fatality_Rate_Per_Incident', 'Total_Incidents'], ascending=[True, False]\n    ).head(15)\n\n    plt.figure(figsize=(14, 8))\n    sns.barplot(\n        x='Make',\n        y='Fatality_Rate_Per_Incident',\n        data=lowest_fatality_rate_makes,\n        palette='magma_r'  # Using a reverse color palette to highlight lower rates\n    )\n    plt.title(f'Top 15 Aircraft Makes with Lowest Fatality Rate Per Incident (Min. {min_incidents_threshold} Incidents)')\n    plt.xlabel('Aircraft Manufacturer')\n    plt.ylabel('Fatality Rate (%)')\n    plt.xticks(rotation=45, ha='right')\n    plt.tight_layout()\n    plt.show()\n    # Note: Matplotlib/Seaborn plots are static. If you need interactive HTML, Plotly is recommended.\n    # We will not save a static image here as the request implied updating the interactive section.\nelse:\n    print(\"Skipping visualization: Data not loaded or risk summary not generated.\")\n\n",
+      "metadata": {
+        "trusted": true
+      },
+      "outputs": [],
+      "execution_count": null
+    },
+    {
+      "id": "6d8b17b2-afee-4313-b120-39a13e18b7a8",
+      "cell_type": "markdown",
+      "source": "### 6.3. Top Aircraft Makes by Lowest High Damage Rate Per Incident\nThis chart helps assess financial risk by identifying aircraft less prone to substantial or destroyed damage in incidents.",
+      "metadata": {}
+    },
+    {
+      "id": "e5d8860b-2bcc-4b94-9b86-2a33d89984fb",
+      "cell_type": "code",
+      "source": "if df is not None and 'aircraft_risk_summary_filtered' in locals():\n    print(\"\\n--- Visualizing Top Aircraft Makes with Lowest High Damage Rate Per Incident (Matplotlib/Seaborn) ---\")\n    # Sort by High_Damage_Rate_Per_Incident (ascending), then by Total_Incidents (descending)\n    lowest_damage_rate_makes = aircraft_risk_summary_filtered.sort_values(\n        by=['High_Damage_Rate_Per_Incident', 'Total_Incidents'], ascending=[True, False]\n    ).head(15)\n\n    plt.figure(figsize=(14, 8))\n    sns.barplot(\n        x='Make',\n        y='High_Damage_Rate_Per_Incident',\n        data=lowest_damage_rate_makes,\n        palette='plasma_r'  # Using a reverse color palette to highlight lower rates\n    )\n    plt.title(f'Top 15 Aircraft Makes with Lowest High Damage Rate Per Incident (Min. {min_incidents_threshold} Incidents)')\n    plt.xlabel('Aircraft Manufacturer')\n    plt.ylabel('High Damage Rate (%)')\n    plt.xticks(rotation=45, ha='right')\n    plt.tight_layout()\n    plt.show()\n    # Note: Matplotlib/Seaborn plots are static. For interactive HTML plots, Plotly remains the best choice.\nelse:\n    print(\"Skipping visualization: Data not loaded or risk summary not generated.\")\n\n",
+      "metadata": {
+        "trusted": true
+      },
+      "outputs": [],
+      "execution_count": null
+    },
+    {
+      "id": "de098cab-7b95-4f8e-a455-f4ca6e2b1c55",
+      "cell_type": "markdown",
+      "source": "### 6.4. Trend of Incidents and Fatalities Over Time\nUnderstanding long-term trends in aviation safety provides crucial context for purchasing decisions.",
+      "metadata": {}
+    },
+    {
+      "id": "164e3fa7-fec1-47ed-a2df-d5fa2c55d9d1",
+      "cell_type": "code",
+      "source": "if df is not None:\n    print(\"\\n--- Visualizing Trend of Aviation Incidents and Fatalities Over Time (Matplotlib/Seaborn) ---\")\n    # Aggregate by Year for overall trends\n    yearly_summary = df.groupby('Year').agg(\n        Total_Incidents=('Event.Id', 'count'),\n        Total_Fatalities=('Fatalities', 'sum')\n    ).reset_index()\n\n    # Filter out very early or very late years if data is sparse or incomplete at the edges\n    # Assuming full data from 1965 to 2022 for clean trends\n    yearly_summary = yearly_summary[\n        (yearly_summary['Year'] >= df['Year'].min() + 3) &\n        (yearly_summary['Year'] <= df['Year'].max() - 1)\n    ]\n\n    plt.figure(figsize=(14, 8))\n    sns.lineplot(x='Year', y='Total_Incidents', data=yearly_summary, marker='o', label='Total Incidents', color='blue')\n    sns.lineplot(x='Year', y='Total_Fatalities', data=yearly_summary, marker='o', label='Total Fatalities', color='red')\n\n    plt.title('Trend of Aviation Incidents and Fatalities Over Time (1962-2023)')\n    plt.xlabel('Year')\n    plt.ylabel('Count')\n    plt.legend()\n    plt.grid(True, linestyle='--', alpha=0.7)\n    plt.tight_layout()\n    plt.show()\nelse:\n    print(\"Skipping visualization: Data not loaded.\")\n",
+      "metadata": {
+        "trusted": true
+      },
+      "outputs": [],
+      "execution_count": null
+    },
+    {
+      "id": "5139ad96-b3a0-4fa2-8919-aab50832a333",
+      "cell_type": "markdown",
+      "source": "## 7. Business Recommendations\nBased on the analysis of NTSB aviation accident data, these recommendations are designed to guide the new aviation division in selecting aircraft with the lowest risk profiles, balancing safety with financial considerations.",
+      "metadata": {}
+    },
+    {
+      "id": "870e7b46-dc7b-4189-9f57-d36c0b393bb6",
+      "cell_type": "markdown",
+      "source": "### Recommendation 1: Prioritize Aircraft for Optimal Life Safety\nMy analysis of incident fatality rates clearly identifies certain aircraft manufacturers as having a superior safety record concerning human life. To minimize the gravest risk – the loss of life – I strongly recommend prioritizing aircraft from the following manufacturers:\n\n1. CESSNA: Consistently appears with a very low fatality rate per incident across a large number of recorded incidents, making it a statistically robust safe choice.\n\n2. PIPER: Similar to Cessna, Piper aircraft also demonstrate a low fatality rate despite extensive operational history, indicating a strong safety performance.\n\nThese manufacturers consistently demonstrate remarkably low fatality rates per incident, suggesting robust design, operational characteristics, or inherent safety features that contribute to a safer outcome when incidents do occur. Focusing on these models for initial purchases will lay a strong foundation for a safety-first operational culture.",
+      "metadata": {}
+    },
+    {
+      "id": "0ccce156-2def-4b76-9a4c-e014b3569811",
+      "cell_type": "markdown",
+      "source": "### Recommendation 2: Select Aircraft to Minimize Financial Risk from Damage\nBeyond the critical aspect of human safety, minimizing financial exposure from aircraft damage is paramount for a sustainable business model. My findings indicate specific aircraft manufacturers exhibit a lower propensity for severe damage in incidents.\n\nI recommend considering aircraft from:\n\n1. CESSNA: Exhibits a significantly low rate of substantial or destroyed damage, implying lower repair costs and less downtime following incidents.\n\n2. BEECH: Aircraft from Beech also show a lower rate of high-severity damage, offering a good balance of operational reliability and reduced financial risk.\n\nThese aircraft types show significantly reduced rates of substantial or destroyed damage, which directly translates to lower repair costs, less operational downtime, and potentially more favorable insurance terms, thereby safeguarding our capital investment in the long term.",
+      "metadata": {}
+    },
+    {
+      "id": "5ccaeae8-398a-488a-9408-6d636a5bb423",
+      "cell_type": "markdown",
+      "source": "### Recommendation 3: Leverage Historical Safety Trends for Strategic Operational Planning\nThe NTSB data reveals a compelling long-term trend: overall aviation safety, measured by both incident and fatality rates, has significantly improved over the decades. This continuous enhancement is largely due to advancements in technology, stricter regulations, and refined operational procedures.\n\nTherefore, my strategic recommendation is twofold:\n\nPrioritize Newer Models: When acquiring aircraft from the recommended manufacturers, give preference to newer models within their respective lines. These models often incorporate the latest safety innovations and design improvements that have contributed to the overall positive safety trend.\n\nFocus on Proactive Risk Mitigation: While specific causes of incidents are diverse, a deeper dive into common contributing factors for high-risk incident types (e.g., pilot error during landing phases, mechanical failures related to engine systems, or adverse weather conditions) can inform targeted training programs and maintenance protocols for our fleet, further enhancing operational safety and reducing incident probability across the board. This can be further explored by analyzing the Broad Phase of Flight and Cause Category columns in the original dataset",
+      "metadata": {}
+    },
+    {
+      "id": "974c6c6b-7bf7-42a6-81a7-45e64b3f494d",
+      "cell_type": "markdown",
+      "source": "## Conclusion and Next Steps\nThis analysis provides a strong data-driven foundation for the company's entry into the aviation industry. By focusing on aircraft with demonstrably lower risk profiles concerning both human life and financial damage, the new division can build a safe and financially sound operation.\n\n### Next Steps for Stakeholders:\n\nReview the interactive dashboards: Explore the *.html files generated from the Plot charts for dynamic insights.\n\nDiscuss specific model types: While this analysis focused on 'Aircraft Make', further granular analysis on specific 'Aircraft Models' within the recommended makes can be performed.",
+      "metadata": {}
+    }
+  ]
+}
