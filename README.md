@@ -20,11 +20,14 @@ As our company explores expanding into the aviation industry, safety and risk ma
 #### 1.Top 15 aicraft makes with lowest high damage rate per incident
 ![Lowest high damage](https://github.com/apelicier/Phase-1-project/blob/main/Top%2015%20aicraft%20makes%20with%20lowest%20high%20damage%20rate%20per%20incident.png)
 
-#### 2. Average Severity by Aircraft Age
-![age-severity](images/age_severity_plot.png)
+#### 2. Top 15 aircraft makes by total incidents
+![makes by total incident](https://github.com/apelicier/Phase-1-project/blob/main/Top%2015%20aircraft%20makes%20by%20total%20incidents.png)
 
-#### 3. Average Severity by Flight Purpose
-![purpose-severity](images/purpose_severity.png)
+#### 3. Top 15 aircraft makes with lowest fatality rate per incident.png
+![Lowest fatality](https://github.com/apelicier/Phase-1-project/blob/main/Top%2015%20aircraft%20makes%20with%20lowest%20fatality%20rate%20per%20incident.png)
+
+#### 4. Trend of aviation incidents and fatalities over time
+![trend over time](https://github.com/apelicier/Phase-1-project/blob/main/Trend%20of%20aviation%20incidents%20and%20fatalities%20over%20time.png)
 
 ## ✅ Conclusion
 Our final recommendations are:
@@ -38,6 +41,6 @@ These insights support a low-risk, data-informed entry into the aviation market.
 ## 📁 Project Files
 - [Final Notebook (.ipynb)](aviation_analysis.ipynb)
 - [PDF of Notebook](aviation_analysis.pdf)
-- [Presentation Slides](presentation.pdf)
+- [Presentation Slides](aviation_presentation.pdf)
 - [Interactive Dashboard](dashboard/app.py or add Tableau public link here)
 
