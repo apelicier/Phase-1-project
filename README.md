@@ -17,8 +17,8 @@ As our company explores expanding into the aviation industry, safety and risk ma
 - **Scope:** Civil aviation accidents in the U.S. and international waters
 
 ### Visualizations
-#### 1. Top 10 Lowest-Risk Aircraft Models
-![low-risk-aircraft](images/low_risk_aircraft.png)
+#### 1.Top 15 aicraft makes with lowest high damage rate per incident
+![Lowest high damage](Top 15 aicraft makes with lowest high damage rate per incident.png)
 
 #### 2. Average Severity by Aircraft Age
 ![age-severity](images/age_severity_plot.png)
