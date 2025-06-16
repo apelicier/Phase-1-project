@@ -18,7 +18,7 @@ As our company explores expanding into the aviation industry, safety and risk ma
 
 ### Visualizations
 #### 1.Top 15 aicraft makes with lowest high damage rate per incident
-![Lowest high damage](Top 15 aicraft makes with lowest high damage rate per incident.png)
+![Lowest high damage](https://github.com/apelicier/Phase-1-project/blob/main/Top%2015%20aicraft%20makes%20with%20lowest%20high%20damage%20rate%20per%20incident.png)
 
 #### 2. Average Severity by Aircraft Age
 ![age-severity](images/age_severity_plot.png)
