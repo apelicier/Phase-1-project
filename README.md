@@ -40,7 +40,8 @@ These insights support a low-risk, data-informed entry into the aviation market.
 
 ## 📁 Project Files
 - [Final Notebook (.ipynb)](aviation_analysis.ipynb)
+- [Final Notebook (.py)](aviation_analysis2.py)
 - [PDF of Notebook](aviation_analysis.pdf)
 - [Presentation Slides](aviation_presentation.pdf)
-- [Interactive Dashboard](dashboard/app.py or add Tableau public link here)
+- [Interactive Dashboard](aviation_Risk_analysis.pbix)
 
